@@ -1,60 +1,11 @@
+// CS247 2014 PS3 starter code borui@stanford.edu
+
 var socket = null;
 var cur_video_blob = null;
 $(document).ready(function(){
-  connect_to_chat_firebase();
-  //connect_to_chat();
+  //connect_to_chat_firebase();
+  connect_to_chat_nodejs_socket();
 });
-
-function connect_to_chat_firebase(){
-  var fb_instance = new Firebase("https://cs247ps3.firebaseio.com");
-
-  // generate new chatroom id or use existing id
-  var url_segments = document.location.href.split("/#");
-  if(url_segments[1]){
-    fb_chat_room_id = url_segments[1];
-  }else{
-    fb_chat_room_id = Math.random().toString(36).substring(7);
-  }
-  display_msg({m:"Share this url with your friend to join this chat: "+ document.location.origin+"/#"+fb_chat_room_id,c:"red"})
-
-  var fb_new_chat_room = fb_instance.child('chatrooms').child(fb_chat_room_id);
-  var fb_instance_users = fb_new_chat_room.child('users');
-  var fb_instance_stream = fb_new_chat_room.child('stream');
-  var my_color = "#"+((1<<24)*Math.random()|0).toString(16);
-
-  // listen to events
-  fb_instance_users.on("child_added",function(snapshot){
-    display_msg({m:snapshot.val().name+" joined the room",c: snapshot.val().c});
-  });
-  fb_instance_stream.on("child_added",function(snapshot){
-    display_msg(snapshot.val());
-  });
-
-  // block until username is answered
-  var username = window.prompt("Welcome, warrior! please declare your name?");
-  if(!username){
-    username = "anonymous"+Math.floor(Math.random()*1111);
-  }
-  fb_instance_users.push({ name: username,c: my_color});
-  $("#waiting").remove();
-
-  // bind submission box
-  $("#submission input").keydown(function( event ) {
-    if (event.which == 13) {
-      if(has_emotions($(this).val())){
-        fb_instance_stream.push({m:username+": " +$(this).val(), v:cur_video_blob, c: my_color});
-      }else{
-        fb_instance_stream.push({m:username+": " +$(this).val(), c: my_color});
-      }
-      $(this).val("");
-      scroll_to_bottom(0);
-    }
-  });
-
-  // scroll to bottom in case there is already content
-  scroll_to_bottom(1300);
-  connect_webcam();
-}
 
 function display_msg(data){
   $("#conversation").append("<div class='msg' style='color:"+data.c+"'>"+data.m+"</div>");
@@ -79,41 +30,39 @@ function scroll_to_bottom(wait_time){
   },wait_time);
 }
 
-// used for node js backend
-// function bind_submission_box(){
-//   $("#submission input").keydown(function( event ) {
-//     if (event.which == 13) {
-//       if(has_emotions($(this).val())){
-//         socket.emit('user_vid', {m:$(this).val(),v:cur_video_blob});
-//       }else{
-//         socket.emit('user_msg', {m:$(this).val()});
-//       }
-//       $(this).val("");
-//       scroll_to_bottom(0);
-//     }
-//   });
-// }
+function bind_submission_box(){
+  $("#submission input").keydown(function( event ) {
+    if (event.which == 13) {
+      if(has_emotions($(this).val())){
+        socket.emit('user_vid', {m:$(this).val(),v:cur_video_blob});
+      }else{
+        socket.emit('user_msg', {m:$(this).val()});
+      }
+      $(this).val("");
+      scroll_to_bottom(0);
+    }
+  });
+}
 
-// used for node js backend
-// function connect_to_chat(){
-//   //socket = io.connect('http://localhost:3000');
-//   socket = io.connect(document.location.origin);
-//   socket.on('connected',function (data){
-//     var username = window.prompt("Welcome, warrior! please declare your name?");
-//     if(username){
-//       socket.emit('new_user', { username: username });
-//     }else{
-//       socket.emit('new_user', { username: "anonymous"+Math.floor(Math.random()*1111) });
-//     }
-//     bind_submission_box();
-//     connect_webcam();
-//     $("#waiting").remove();
-//   });
-//   socket.on('to_all', function (data) {
-//     //console.log(data);
-//     display_msg(data)
-//   });
-// }
+function connect_to_chat_nodejs_socket(){
+  //socket = io.connect('http://localhost:3000');
+  socket = io.connect(document.location.origin);
+  socket.on('connected',function (data){
+    var username = window.prompt("Welcome, warrior! please declare your name?");
+    if(username){
+      socket.emit('new_user', { username: username });
+    }else{
+      socket.emit('new_user', { username: "anonymous"+Math.floor(Math.random()*1111) });
+    }
+    bind_submission_box();
+    connect_webcam();
+    $("#waiting").remove();
+  });
+  socket.on('to_all', function (data) {
+    //console.log(data);
+    display_msg(data)
+  });
+}
 
 function connect_webcam(){
   var mediaConstraints = {
@@ -235,5 +184,57 @@ var base64_to_blob = function(base64) {
   var blob = new Blob([view]);
   return blob;
 };
+
+
+// function connect_to_chat_firebase(){
+//   var fb_instance = new Firebase("https://cs247ps3.firebaseio.com");
+
+//   // generate new chatroom id or use existing id
+//   var url_segments = document.location.href.split("/#");
+//   if(url_segments[1]){
+//     fb_chat_room_id = url_segments[1];
+//   }else{
+//     fb_chat_room_id = Math.random().toString(36).substring(7);
+//   }
+//   display_msg({m:"Share this url with your friend to join this chat: "+ document.location.origin+"/#"+fb_chat_room_id,c:"red"})
+
+//   var fb_new_chat_room = fb_instance.child('chatrooms').child(fb_chat_room_id);
+//   var fb_instance_users = fb_new_chat_room.child('users');
+//   var fb_instance_stream = fb_new_chat_room.child('stream');
+//   var my_color = "#"+((1<<24)*Math.random()|0).toString(16);
+
+//   // listen to events
+//   fb_instance_users.on("child_added",function(snapshot){
+//     display_msg({m:snapshot.val().name+" joined the room",c: snapshot.val().c});
+//   });
+//   fb_instance_stream.on("child_added",function(snapshot){
+//     display_msg(snapshot.val());
+//   });
+
+//   // block until username is answered
+//   var username = window.prompt("Welcome, warrior! please declare your name?");
+//   if(!username){
+//     username = "anonymous"+Math.floor(Math.random()*1111);
+//   }
+//   fb_instance_users.push({ name: username,c: my_color});
+//   $("#waiting").remove();
+
+//   // bind submission box
+//   $("#submission input").keydown(function( event ) {
+//     if (event.which == 13) {
+//       if(has_emotions($(this).val())){
+//         fb_instance_stream.push({m:username+": " +$(this).val(), v:cur_video_blob, c: my_color});
+//       }else{
+//         fb_instance_stream.push({m:username+": " +$(this).val(), c: my_color});
+//       }
+//       $(this).val("");
+//       scroll_to_bottom(0);
+//     }
+//   });
+
+//   // scroll to bottom in case there is already content
+//   scroll_to_bottom(1300);
+//   connect_webcam();
+// }
 
 
